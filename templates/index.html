@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Blob Visualizer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body { background: #0e0e0e; color: #f0f0f0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 2rem; }
+    h1 { color: #00ffd5; }
+    form { margin-bottom: 1.5rem; }
+    input[type="file"] { margin-right: 1rem; }
+    button { background: #00ffd5; color: #000; border: none; padding: .5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .progress-bar { width: 300px; height: 20px; background: #333; border-radius: 10px; overflow: hidden; margin: .5rem 0; }
+    .fill { height: 100%; width: 0; background: #00ffd5; text-align: center; color: #000; line-height: 20px; font-size: .8rem; transition: width .2s; }
+    #downloadBtn { display: none; margin-top: 1rem; background: #22d3ee; padding: .6rem 1.2rem; border-radius: 6px; text-decoration: none; color: #000; font-weight: bold; }
+    #downloadBtn:hover { background: #0ea5e9; }
+  </style>
+</head>
+<body>
+
+  <h1>Blob Visualizer</h1>
+
+  <form id="uploadForm">
+    <input type="file" id="videoIn" name="video" accept="video/*" required>
+    <button type="submit">Upload &amp; Process</button>
+  </form>
+
+  <div>
+    <div>Upload Progress:</div>
+    <div class="progress-bar"><div id="upFill" class="fill">0%</div></div>
+  </div>
+  <div>
+    <div>Processing Progress:</div>
+    <div class="progress-bar"><div id="procFill" class="fill">0%</div></div>
+  </div>
+
+  <a id="downloadBtn" href="#">⬇ Download Processed Video</a>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script>
+    const socket = io();
+
+    const upFill   = document.getElementById("upFill");
+    const procFill = document.getElementById("procFill");
+    const form     = document.getElementById("uploadForm");
+    const videoIn  = document.getElementById("videoIn");
+    const dlBtn    = document.getElementById("downloadBtn");
+
+    socket.on("upload_progress", data => {
+      upFill.style.width = data.progress + "%";
+      upFill.textContent = data.progress + "%";
+      console.log("Upload:", data.progress);
+    });
+
+    socket.on("process_progress", data => {
+      procFill.style.width = data.progress + "%";
+      procFill.textContent = data.progress + "%";
+      console.log("Process:", data.progress);
+    });
+
+    socket.on("process_complete", data => {
+      console.log("Process complete event received:", data);
+      dlBtn.href = `/download/${data.filename}`;
+      dlBtn.style.display = "inline-block";
+    });
+
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      // Reset bars & hide download
+      upFill.style.width = upFill.textContent = "0%";
+      procFill.style.width = procFill.textContent = "0%";
+      dlBtn.style.display = "none";
+
+      const fd = new FormData();
+      fd.append("video", videoIn.files[0]);
+
+      fetch("/upload", { method: "POST", body: fd })
+        .then(res => res.json())
+        .catch(err => console.error("Upload failed:", err));
+    });
+  </script>
+</body>
+</html>
